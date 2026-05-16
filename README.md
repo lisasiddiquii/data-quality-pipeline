@@ -13,22 +13,6 @@ Features:
 - ML training readiness checks
 - Structured logging system
 
-  ml-data-quality-pipeline/
-│
-├── data/              # Raw supplier datasets
-├── logs/              # Pipeline logs
-├── reports/           # Validation reports & metrics
-├── src/
-│   ├── loaders/
-│   ├── validators/
-│   ├── cleaners/
-│   ├── metrics/
-│   └── pipeline.py
-│
-├── tests/
-├── requirements.txt
-└── README.md
-
 Why I Built This: 
 Most beginner data projects stop at analysis.
 I wanted to build something closer to the systems that exist before machine learning models are even trained — where data reliability, validation, and monitoring matter just as much as the model itself.
