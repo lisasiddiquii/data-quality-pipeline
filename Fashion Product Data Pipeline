@@ -1,0 +1,152 @@
+supplier_1 = [
+    {"id": 1, "name": "Leather Jacket", "price": "189.99", "rating": "4.8", "category": "outerwear", "in_stock": "yes"},
+    {"id": 2, "name": "Blue Shirt", "price": "$45.50", "rating": None, "category": "tops", "in_stock": "yes"},
+    {"id": 3, "name": "Classic Jeans", "price": "79.99", "rating": "4.2", "category": None, "in_stock": "no"},
+]
+
+supplier_2 = [
+    {"sku": "S2-001", "product": "Cotton T-Shirt", "cost": 39.99, "avg_rating": 4.1, "type": "tops", "available": True},
+    {"sku": "S2-002", "product": "Wool Sweater", "cost": "invalid", "avg_rating": 4.6, "type": "outerwear", "available": True},
+    {"sku": "S2-003", "product": "Running Shoes", "cost": 119.99, "avg_rating": None, "type": None, "available": False},
+]
+
+supplier_3 = [
+    ("Khaki Chinos", 69.99, 4.3, "bottoms"),
+    ("Black Boots", 159.99, 4.7, "footwear"),
+    ("Summer Dress", "79", "4.9", "dresses"),  
+]
+
+final_supplies = supplier_1 + supplier_2 + supplier_3
+
+class DataPipeline:
+    def __init__(self):
+        self.cleaned_data = []
+        self.failures = {}  # Tracks failures by type (e.g., "Invalid Price")
+        self.metrics = {"total_input": 0, "total_cleaned": 0}
+
+    def _log_failure(self, error_type):
+        """Helper to track failure distribution."""
+        self.failures[error_type] = self.failures.get(error_type, 0) + 1
+
+    def normalize_supplier_1(self, raw_product):
+        """Standard keys format."""
+       
+        return True, {
+            "name": raw_product.get("name"),
+            "price": raw_product.get("price"),
+            "rating": raw_product.get("rating"),
+            "category": raw_product.get("category")
+        }, None
+
+    def normalize_supplier_2(self, raw_product):
+        """Map non-standard keys (product, cost, avg_rating, type) [7]."""
+        normalized = {
+            "name": raw_product.get("product"),
+            "price": raw_product.get("cost"),
+            "rating": raw_product.get("avg_rating"),
+            "category": raw_product.get("type")
+        }
+        return True, normalized, None
+
+    def normalize_supplier_3(self, raw_product):
+        """Handle tuple-based structure [7]."""
+        try:
+            normalized = {
+                "name": raw_product,
+                "price": raw_product[8],
+                "rating": raw_product[9],
+                "category": raw_product[10]
+            }
+            return True, normalized, None
+        except (IndexError, TypeError):
+            return False, None, "Malformed tuple structure"
+
+    def validate_product(self, normalized):
+        """Strict validation gate for ML-readiness [11]."""
+        errors = []
+        
+        
+        name = normalized.get("name")
+        if not name or str(name).strip() == "":
+            errors.append("Missing or empty name")
+
+        
+        try:
+            raw_price = normalized.get("price")
+            if isinstance(raw_price, str):
+                raw_price = raw_price.replace("$", "").strip()
+            price = float(raw_price)
+            if not (0 <= price <= 10000):
+                errors.append(f"Price {price} out of range")
+            else:
+                normalized["price"] = price # Save cleaned float
+        except (ValueError, TypeError, AttributeError):
+            errors.append(f"Invalid price format: {normalized.get('price')}")
+
+        
+        rating = normalized.get("rating")
+        if rating is None:
+            normalized["rating"] = 3.0
+        else:
+            try:
+                rating_val = float(rating)
+                if not (0 <= rating_val <= 5):
+                    errors.append(f"Rating {rating_val} out of range")
+                normalized["rating"] = rating_val
+            except (ValueError, TypeError):
+                errors.append(f"Invalid rating: {rating}")
+
+        
+        valid_cats = ['outerwear', 'tops', 'bottoms', 'footwear']
+        if normalized.get("category") not in valid_cats:
+            errors.append(f"Unsupported category: {normalized.get('category')}")
+
+        if errors:
+            return False, errors
+        return True, []
+
+    def process_all_suppliers(self, suppliers):
+        """The main engine processing all data end-to-end [12]."""
+        for data_list, supplier_name, normalizer in suppliers:
+            for item in data_list:
+                self.metrics["total_input"] += 1
+                
+                
+                success, normalized, norm_err = normalizer(item)
+                if not success:
+                    self._log_failure(norm_err)
+                    continue
+                
+                
+                is_valid, val_errors = self.validate_product(normalized)
+                if is_valid:
+                    self.cleaned_data.append(normalized)
+                    self.metrics["total_cleaned"] += 1
+                else:
+                    
+                    self._log_failure(val_errors)
+        return self
+
+    def quality_report(self):
+        
+        total = self.metrics["total_input"]
+        cleaned = self.metrics["total_cleaned"]
+        success_rate = (cleaned / total * 100) if total > 0 else 0
+        
+        # Decision Logic 
+        if success_rate < 70:
+            status, rec = False, "NOT ML ready (Data quality issue)"
+        elif 70 <= success_rate <= 90:
+            status, rec = True, "ML ready with caution"
+        else:
+            status, rec = True, "ML ready"
+
+        return {
+            "total_input": total,
+            "total_cleaned": cleaned,
+            "success_rate": success_rate,
+            "failures_by_type": self.failures,
+            "is_ml_ready": status,
+            "recommendation": rec,
+            "cleaned_data": self.cleaned_data
+        }
