@@ -15,7 +15,7 @@ Features:
 
 Why I Built This: 
 Most beginner data projects stop at analysis.
-I wanted to build something closer to the systems that exist before machine learning models are even trained — where data reliability, validation, and monitoring matter just as much as the model itself.
+I wanted to build something closer to the systems that exist before machine learning models are even trained where data reliability, validation, and monitoring matter just as much as the model itself.
 This project helped me practice:
 - writing cleaner production-style Python
 - thinking like a data engineer
